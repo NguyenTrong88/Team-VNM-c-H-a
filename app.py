@@ -1,32 +1,34 @@
 import streamlit as st
 import pandas as pd
 
-# Cấu hình giao diện trang web hiển thị rộng rãi
 st.set_page_config(page_title="Phần mềm Lọc Dữ Liệu Excel", layout="wide")
 
 st.title("📊 ỨNG DỤNG LỌC DỮ LIỆU EXCEL TỪ GOOGLE DRIVE")
 st.subheader("📋 Đang đọc dữ liệu từ sheet: DSKH (Cố định 2 dòng tiêu đề)")
 st.write("Dữ liệu được cập nhật theo thời gian thực từ file Excel trên Drive của bạn.")
 
-# --- BƯỚC THAY ĐỔI THÔNG TIN CỦA BẠN ---
+# ================================================================
+# CẤU HÌNH — CHỈ CẦN CHỈNH PHẦN NÀY
+# ================================================================
 FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
 
-# Tên các cột thật trong Excel tương ứng với từng chỉ tiêu
-COT_MA_KH   = "Mã KH"       # Cột chứa Mã KH
-COT_TEN_KH  = "Tên KH"      # Cột chứa Tên KH
+# Vị trí cột theo Excel (A=0, B=1, C=2, D=3, ...)
+COL_MA_KH  = 2   # Cột C — Mã KH
+COL_TEN_KH = 3   # Cột D — Tên KH
 
-# V_SHOP
-COT_H = "CỘT H"   # V_SHOP TL  - Chỉ tiêu
-COT_Q = "CỘT Q"   # V_SHOP TL  - Thực hiện
-COT_I = "CỘT I"   # V_SHOP TB  - Chỉ tiêu (không có Thực hiện)
+# Vị trí cột số liệu cho bảng thống kê
+COL_H = 7    # V_SHOP TL     — Chỉ tiêu
+COL_Q = 16   # V_SHOP TL     — Thực hiện
+COL_I = 8    # V_SHOP TB     — Chỉ tiêu (không có Thực hiện)
+COL_J = 9    # MẸ VÀ BÉ TL  — Chỉ tiêu (không có Thực hiện)
+COL_K = 10   # MẸ VÀ BÉ SB_BDD TB — Chỉ tiêu
+COL_R = 17   # MẸ VÀ BÉ SB_BDD TB — Thực hiện
+COL_L = 11   # MẸ VÀ BÉ SBPS TB   — Chỉ tiêu
+COL_S = 18   # MẸ VÀ BÉ SBPS TB   — Thực hiện
 
-# MẸ VÀ BÉ
-COT_J = "CỘT J"   # MẸ VÀ BÉ TL      - Chỉ tiêu (không có Thực hiện)
-COT_K = "CỘT K"   # MẸ VÀ BÉ SB_BDD TB - Chỉ tiêu
-COT_R = "CỘT R"   # MẸ VÀ BÉ SB_BDD TB - Thực hiện
-COT_L = "CỘT L"   # MẸ VÀ BÉ SBPS TB   - Chỉ tiêu
-COT_S = "CỘT S"   # MẸ VÀ BÉ SBPS TB   - Thực hiện
-# --------------------------------------
+# Cột dùng trong bộ lọc sidebar (dùng tên tiêu đề từ dòng 4)
+COT_TINH_TONG = "PSDS T4"
+# ================================================================
 
 excel_url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
 
@@ -36,7 +38,7 @@ def load_data():
         df_raw = pd.read_excel(excel_url, sheet_name='DSKH', header=None, engine='openpyxl')
         return df_raw
     except ValueError:
-        st.error("❌ Không tìm thấy sheet tên là 'DSKH' trong file Excel của bạn.")
+        st.error("❌ Không tìm thấy sheet tên là 'DSKH'. Vui lòng kiểm tra lại tên sheet.")
         return None
     except Exception as e:
         st.error(f"❌ Không thể kết nối đến file Excel trên Drive. Lỗi: {e}")
@@ -45,12 +47,14 @@ def load_data():
 df_raw = load_data()
 
 if df_raw is not None:
-    # Bỏ cột A (cột đầu tiên)
-    df_raw = df_raw.iloc[:, 1:]
+    # Lưu lại df_raw gốc (giữ đủ cột) để tra cứu số liệu theo vị trí cột
+    df_raw_full = df_raw.copy()
 
+    # Trích xuất dòng tiêu đề (dòng 4 và dòng 5, index 3 và 4)
     row_4 = df_raw.iloc[3].fillna("").astype(str).str.strip().tolist()
     row_5 = df_raw.iloc[4].fillna("").astype(str).str.strip().tolist()
 
+    # Chuẩn hóa tên cột cho bộ lọc
     headers_for_filter = []
     for idx, r4 in enumerate(row_4):
         r4_clean = "" if r4.lower().startswith("unnamed:") else r4
@@ -62,9 +66,13 @@ if df_raw is not None:
             else:
                 headers_for_filter.append(f"{r4_clean}_{idx}")
 
+    # Dữ liệu từ dòng 6 trở đi
     df_data = df_raw.iloc[5:].copy()
     df_data.columns = headers_for_filter
     df_data = df_data.reset_index(drop=True)
+
+    # Tạo df_data_full giữ nguyên vị trí cột (không đổi tên) để tra cứu theo index
+    df_data_full = df_raw_full.iloc[5:].copy().reset_index(drop=True)
 
     # --- SIDEBAR BỘ LỌC ---
     st.sidebar.header("Bộ Lọc Dữ Liệu DSKH")
@@ -77,6 +85,7 @@ if df_raw is not None:
         default=filter_options[:2] if len(filter_options) >= 2 else filter_options
     )
 
+    # Áp dụng lọc — lưu lại index để đồng bộ với df_data_full
     filtered_df = df_data.copy()
     if search_query:
         mask = df_data.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
@@ -89,13 +98,17 @@ if df_raw is not None:
         if selected_vals:
             filtered_df = filtered_df[filtered_df[col].astype(str).isin(selected_vals)]
 
-    # --- BẢNG HTML CHÍNH ---
+    # Lấy các dòng tương ứng từ df_data_full theo index đã lọc
+    filtered_df_full = df_data_full.loc[filtered_df.index]
+
+    # --- BẢNG HIỂN THỊ CHÍNH ---
     filtered_df_clean = filtered_df.copy().fillna("")
     filtered_df_clean = filtered_df_clean.map(
         lambda x: "" if str(x).strip().lower() in ["nan", "nat", "null", "#n/a"] else x
     )
 
-    TEN_KH_INDEX = 2
+    # Cột Tên KH dùng để wrap chữ — lấy vị trí trong headers sau khi map
+    TEN_KH_INDEX = COL_TEN_KH  # vẫn giữ nguyên vì không bỏ cột
 
     html_rows = ""
     for _, row in filtered_df_clean.iterrows():
@@ -146,128 +159,90 @@ if df_raw is not None:
         mime="text/csv",
     )
 
-    # ============================================================
-    # PHẦN 3: BẢNG THỐNG KÊ THEO LAYOUT MỚI
-    # ============================================================
+    # ================================================================
+    # PHẦN 3: BẢNG THỐNG KÊ LAYOUT MỚI — LẤY SỐ LIỆU THEO VỊ TRÍ CỘT
+    # ================================================================
     st.markdown("---")
     st.subheader("📊 Thông tin chi tiết khách hàng sau khi lọc")
 
-    def get_val(df, col):
-        """Lấy giá trị đầu tiên của cột, trả về '' nếu không có hoặc cột không tồn tại."""
-        if col in df.columns and len(df) > 0:
-            v = df[col].iloc[0]
-            if str(v).strip().lower() in ["nan", "nat", "null", "#n/a", ""]:
-                return ""
-            return v
-        return ""
+    def fmt_col(df_full, col_idx):
+        """Tính tổng cột theo vị trí index, format có dấu phẩy."""
+        if col_idx >= df_full.shape[1]:
+            return f"⚠️ Cột {col_idx} không tồn tại"
+        total = pd.to_numeric(df_full.iloc[:, col_idx], errors='coerce').sum()
+        if pd.isna(total) or total == 0:
+            return "—"
+        return f"{total:,.0f}"
 
-    def fmt(df, col):
-        """Tính tổng cột số, format có dấu phẩy. Trả về '' nếu cột không tồn tại."""
-        if col in df.columns and len(df) > 0:
-            total = pd.to_numeric(df[col], errors='coerce').sum()
-            if pd.isna(total):
-                return ""
-            return f"{total:,.0f}"
-        return f"⚠️ Không tìm thấy cột '{col}'"
+    def get_str(df_full, col_idx):
+        """Lấy giá trị text đầu tiên theo vị trí index."""
+        if col_idx >= df_full.shape[1] or len(df_full) == 0:
+            return ""
+        v = df_full.iloc[0, col_idx]
+        if str(v).strip().lower() in ["nan", "nat", "null", "#n/a", ""]:
+            return ""
+        return str(v).strip()
 
-    # Lấy thông tin KH (nếu lọc được đúng 1 KH thì hiện, nhiều KH thì hiện tổng hợp)
-    so_kh = filtered_df[COT_MA_KH].nunique() if COT_MA_KH in filtered_df.columns else 0
-
-    if len(filtered_df) == 0:
+    if len(filtered_df_full) == 0:
         st.info("⚠️ Không có dữ liệu. Vui lòng kiểm tra lại bộ lọc.")
     else:
-        # Hiển thị Mã KH / Tên KH
-        if so_kh == 1:
-            ma_kh_hien  = get_val(filtered_df, COT_MA_KH)
-            ten_kh_hien = get_val(filtered_df, COT_TEN_KH)
-            label_ma  = f"**Mã KH:** {ma_kh_hien}"
-            label_ten = f"**Tên KH:** {ten_kh_hien}"
-        else:
-            label_ma  = f"**Mã KH:** ({so_kh} khách hàng)"
-            label_ten = f"**Tên KH:** (nhiều khách hàng)"
+        so_kh = filtered_df_full.iloc[:, COL_MA_KH].nunique()
 
-        st.markdown(label_ma)
-        st.markdown(label_ten)
+        if so_kh == 1:
+            ma_kh_hien  = get_str(filtered_df_full, COL_MA_KH)
+            ten_kh_hien = get_str(filtered_df_full, COL_TEN_KH)
+        else:
+            ma_kh_hien  = f"({so_kh} khách hàng)"
+            ten_kh_hien = "(nhiều khách hàng)"
+
+        st.markdown(f"**Mã KH:** {ma_kh_hien}")
+        st.markdown(f"**Tên KH:** {ten_kh_hien}")
         st.markdown("")
 
-        # Xây dựng bảng HTML thống kê
+        # Cấu trúc bảng: (Nhóm, Loại, col_chi_tieu, col_thuc_hien hoặc None)
         rows_stat = [
-            # (Nhóm, Loại, Chỉ tiêu col, Thực hiện col)
-            ("V_SHOP",    "TL",       COT_H, COT_Q),
-            ("V_SHOP",    "TB",       COT_I, None),
-            ("MẸ VÀ BÉ", "TL",       COT_J, None),
-            ("MẸ VÀ BÉ", "SB_BDD TB",COT_K, COT_R),
-            ("MẸ VÀ BÉ", "SBPS TB",  COT_L, COT_S),
+            ("V_SHOP",    "TL",        COL_H, COL_Q),
+            ("V_SHOP",    "TB",        COL_I, None),
+            ("MẸ VÀ BÉ", "TL",        COL_J, None),
+            ("MẸ VÀ BÉ", "SB_BDD TB", COL_K, COL_R),
+            ("MẸ VÀ BÉ", "SBPS TB",   COL_L, COL_S),
         ]
+
+        # Đếm rowspan mỗi nhóm
+        rowspan_map = {}
+        for nhom, _, _, _ in rows_stat:
+            rowspan_map[nhom] = rowspan_map.get(nhom, 0) + 1
 
         html_stat = """
         <style>
-            .stat-table {
-                border-collapse: collapse;
-                font-family: sans-serif;
-                font-size: 14px;
-                width: 100%;
-                max-width: 600px;
-            }
-            .stat-table th {
-                background-color: #f1f3f5;
-                color: #495057;
-                padding: 8px 14px;
-                border: 1px solid #dee2e6;
-                text-align: center;
-            }
-            .stat-table td {
-                padding: 7px 14px;
-                border: 1px solid #dee2e6;
-                text-align: left;
-            }
-            .stat-table .group-cell {
-                font-weight: bold;
-                background-color: #f8f9fa;
-                vertical-align: middle;
-                text-align: center;
-                color: #343a40;
-            }
-            .stat-table .label-cell {
-                color: #495057;
-                padding-left: 18px;
-            }
-            .stat-table .num-cell {
-                text-align: right;
-                color: #212529;
-                font-variant-numeric: tabular-nums;
-            }
-            .stat-table .empty-cell {
-                text-align: center;
-                color: #adb5bd;
-            }
+            .stat-table { border-collapse: collapse; font-family: sans-serif; font-size: 14px; width: 100%; max-width: 620px; }
+            .stat-table th { background-color: #f1f3f5; color: #495057; padding: 8px 14px; border: 1px solid #dee2e6; text-align: center; }
+            .stat-table td { padding: 7px 14px; border: 1px solid #dee2e6; text-align: left; }
+            .stat-table .group-cell { font-weight: bold; background-color: #f8f9fa; vertical-align: middle; text-align: center; color: #343a40; }
+            .stat-table .label-cell { color: #495057; padding-left: 18px; }
+            .stat-table .num-cell { text-align: right; color: #212529; font-variant-numeric: tabular-nums; }
+            .stat-table .empty-cell { text-align: center; color: #adb5bd; }
         </style>
         <table class="stat-table">
             <thead>
                 <tr>
                     <th style="width:130px"></th>
                     <th style="width:120px"></th>
-                    <th style="width:150px">Chỉ tiêu</th>
-                    <th style="width:150px">Thực hiện</th>
+                    <th style="width:160px">Chỉ tiêu</th>
+                    <th style="width:160px">Thực hiện</th>
                 </tr>
             </thead>
             <tbody>
         """
 
-        # Tính rowspan cho từng nhóm
-        from itertools import groupby
-        groups = {}
-        for nhom, loai, c_ct, c_th in rows_stat:
-            groups[nhom] = groups.get(nhom, 0) + 1
-
         prev_group = None
-        for nhom, loai, c_ct, c_th in rows_stat:
-            ct_val = fmt(filtered_df, c_ct)
-            th_val = fmt(filtered_df, c_th) if c_th else None
+        for nhom, loai, col_ct, col_th in rows_stat:
+            ct_val = fmt_col(filtered_df_full, col_ct)
+            th_val = fmt_col(filtered_df_full, col_th) if col_th is not None else None
 
             group_td = ""
             if nhom != prev_group:
-                rowspan = groups[nhom]
+                rowspan = rowspan_map[nhom]
                 group_td = f'<td class="group-cell" rowspan="{rowspan}">{nhom}</td>'
                 prev_group = nhom
 
@@ -283,7 +258,6 @@ if df_raw is not None:
             """
 
         html_stat += "</tbody></table>"
-
-        st.components.v1.html(html_stat, height=230, scrolling=False)
+        st.components.v1.html(html_stat, height=240, scrolling=False)
 
     st.markdown(f"**Tổng số dòng lọc được:** {len(filtered_df)} dòng")
