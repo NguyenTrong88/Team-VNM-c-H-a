@@ -13,7 +13,7 @@ st.write("Dữ liệu được cập nhật theo thời gian thực từ file Ex
 FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
 
 # 2. HÃY THAY TÊN CỘT BẠN MUỐN TÍNH TỔNG VÀO ĐÂY (Điền chính xác tên cột ở dòng số 4 của Excel)
-COT_TINH_TONG = "PSDS T4"
+COT_TINH_TONG = "Doanh số"
 # --------------------------------------
 
 # Đường dẫn tải trực tiếp file Excel từ Google Drive
