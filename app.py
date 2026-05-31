@@ -10,7 +10,7 @@ st.write("Dữ liệu được cập nhật theo thời gian thực từ file Ex
 
 # --- BƯỚC THAY ĐỔI THÔNG TIN CỦA BẠN ---
 # Hãy thay chuỗi chữ dưới đây bằng MÃ_FILE_CỦA_BẠN đã lấy ở các bước trước
-FILE_ID = "1mrhz-JQAKu2lrQk7cDB_9Vpv4BOQWREh"
+FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
 # --------------------------------------
 
 # Đường dẫn tải trực tiếp file Excel từ Google Drive
