@@ -12,7 +12,7 @@ st.write("Dữ liệu được cập nhật theo thời gian thực từ file Ex
 # ================================================================
 FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
 
-# Các cột muốn hiển thị (theo vị trí Excel: A=0, B=1, C=2, ...)
+# Các cột muốn hiển thị trong bảng (theo vị trí Excel: A=0, B=1, ...)
 COLS_HIEN_THI = [
     1,   # B
     2,   # C — Mã KH
@@ -49,15 +49,27 @@ COLS_HIEN_THI = [
     51,  # AZ
 ]
 
-# Vị trí cột (trong COLS_HIEN_THI) dùng cho bảng thống kê
-COL_MA_KH  = 2   # Cột C — Mã KH (vị trí gốc trong Excel)
+# Vị trí cột gốc Excel
+COL_MA_KH  = 2   # Cột C — Mã KH
 COL_TEN_KH = 3   # Cột D — Tên KH
 
+# Các cột CỐ ĐỊNH trong bộ lọc sidebar (dùng tên tiêu đề từ dòng 4 của Excel)
+# Chỉnh tên cho khớp chính xác với tiêu đề trong file của bạn
+COLS_LOC_CO_DINH = [
+    "Mã KH",
+    "Tên KH",
+    "V_SHOP TL",
+    "MẸ VÀ BÉ TL",
+    "VNM_SHOP TL",
+    "VIP_SHOP TL",
+    "PSDS",
+]
+
 # Vị trí cột gốc Excel cho bảng thống kê
-COL_H = 7    # V_SHOP TL       — Chỉ tiêu
-COL_Q = 16   # V_SHOP TL       — Thực hiện
-COL_I = 8    # V_SHOP TB       — Chỉ tiêu
-COL_J = 9    # MẸ VÀ BÉ TL    — Chỉ tiêu
+COL_H = 7    # V_SHOP TL          — Chỉ tiêu
+COL_Q = 16   # V_SHOP TL          — Thực hiện
+COL_I = 8    # V_SHOP TB          — Chỉ tiêu
+COL_J = 9    # MẸ VÀ BÉ TL       — Chỉ tiêu
 COL_K = 10   # MẸ VÀ BÉ SB_BDD TB — Chỉ tiêu
 COL_R = 17   # MẸ VÀ BÉ SB_BDD TB — Thực hiện
 COL_L = 11   # MẸ VÀ BÉ SBPS TB   — Chỉ tiêu
@@ -81,18 +93,17 @@ def load_data():
 df_raw = load_data()
 
 if df_raw is not None:
-    # Giữ df_raw_full để tra cứu số liệu theo vị trí cột gốc
     df_raw_full = df_raw.copy()
 
     # Lọc chỉ lấy các cột muốn hiển thị
     valid_cols = [c for c in COLS_HIEN_THI if c < df_raw.shape[1]]
     df_raw_display = df_raw.iloc[:, valid_cols]
 
-    # Trích tiêu đề dòng 4 và dòng 5 (chỉ các cột hiển thị)
+    # Trích tiêu đề dòng 4 và dòng 5
     row_4 = df_raw_display.iloc[3].fillna("").astype(str).str.strip().tolist()
     row_5 = df_raw_display.iloc[4].fillna("").astype(str).str.strip().tolist()
 
-    # Chuẩn hóa tên cột cho bộ lọc
+    # Chuẩn hóa tên cột
     headers_for_filter = []
     for idx, r4 in enumerate(row_4):
         r4_clean = "" if r4.lower().startswith("unnamed:") else r4
@@ -109,30 +120,33 @@ if df_raw is not None:
     df_data.columns = headers_for_filter
     df_data = df_data.reset_index(drop=True)
 
-    # df_data_full giữ nguyên tất cả cột gốc để tra cứu số liệu
+    # df_data_full giữ nguyên tất cả cột gốc
     df_data_full = df_raw_full.iloc[5:].copy().reset_index(drop=True)
 
-    # Vị trí cột Tên KH trong danh sách COLS_HIEN_THI (để wrap chữ)
+    # Vị trí cột Tên KH trong danh sách hiển thị (để wrap chữ)
     TEN_KH_DISPLAY_IDX = valid_cols.index(COL_TEN_KH) if COL_TEN_KH in valid_cols else -1
 
-    # --- SIDEBAR BỘ LỌC ---
+    # ================================================================
+    # SIDEBAR BỘ LỌC CỐ ĐỊNH
+    # ================================================================
     st.sidebar.header("Bộ Lọc Dữ Liệu DSKH")
     search_query = st.sidebar.text_input("🔍 Tìm kiếm nhanh (Mã, Tên, SĐT...):")
 
-    filter_options = [col for col in headers_for_filter if not col.startswith("Cột_Trống_")]
-    selected_filter_cols = st.sidebar.multiselect(
-        "Chọn các cột bạn muốn lọc chi tiết:",
-        options=filter_options,
-        default=filter_options[:2] if len(filter_options) >= 2 else filter_options
-    )
+    # Chỉ hiển thị các cột lọc cố định (bỏ multiselect chọn cột)
+    # Lọc ra những cột nào thực sự tồn tại trong dữ liệu
+    cols_loc_ton_tai = [col for col in COLS_LOC_CO_DINH if col in headers_for_filter]
 
+    # Áp dụng lọc
     filtered_df = df_data.copy()
+
     if search_query:
-        mask = df_data.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
+        mask = df_data.astype(str).apply(
+            lambda x: x.str.contains(search_query, case=False, na=False)
+        ).any(axis=1)
         filtered_df = filtered_df[mask]
 
-    for col in selected_filter_cols:
-        unique_vals = [str(val).strip() for val in df_data[col].unique() if str(val).strip() != ""]
+    for col in cols_loc_ton_tai:
+        unique_vals = [str(val).strip() for val in df_data[col].unique() if str(val).strip() not in ["", "nan", "NaT", "None"]]
         unique_vals = sorted(list(set(unique_vals)))
         selected_vals = st.sidebar.multiselect(f"Lọc theo {col}:", options=unique_vals)
         if selected_vals:
@@ -197,7 +211,7 @@ if df_raw is not None:
     )
 
     # ================================================================
-    # PHẦN 3: BẢNG THỐNG KÊ LAYOUT MỚI
+    # PHẦN 3: BẢNG THỐNG KÊ
     # ================================================================
     st.markdown("---")
     st.subheader("📊 Thông tin chi tiết khách hàng sau khi lọc")
