@@ -12,22 +12,56 @@ st.write("Dữ liệu được cập nhật theo thời gian thực từ file Ex
 # ================================================================
 FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
 
-# Vị trí cột theo Excel (A=0, B=1, C=2, D=3, ...)
-COL_MA_KH  = 2   # Cột C — Mã KH
+# Các cột muốn hiển thị (theo vị trí Excel: A=0, B=1, C=2, ...)
+COLS_HIEN_THI = [
+    1,   # B
+    2,   # C — Mã KH
+    3,   # D — Tên KH
+    6,   # G
+    7,   # H
+    8,   # I
+    9,   # J
+    10,  # K
+    11,  # L
+    12,  # M
+    13,  # N
+    14,  # O
+    15,  # P
+    16,  # Q
+    17,  # R
+    18,  # S
+    19,  # T
+    20,  # U
+    21,  # V
+    30,  # AE
+    31,  # AF
+    32,  # AG
+    33,  # AH
+    34,  # AI
+    35,  # AJ
+    36,  # AK
+    37,  # AL
+    38,  # AM
+    39,  # AN
+    40,  # AO
+    41,  # AP
+    42,  # AQ
+    51,  # AZ
+]
+
+# Vị trí cột (trong COLS_HIEN_THI) dùng cho bảng thống kê
+COL_MA_KH  = 2   # Cột C — Mã KH (vị trí gốc trong Excel)
 COL_TEN_KH = 3   # Cột D — Tên KH
 
-# Vị trí cột số liệu cho bảng thống kê
-COL_H = 7    # V_SHOP TL     — Chỉ tiêu
-COL_Q = 16   # V_SHOP TL     — Thực hiện
-COL_I = 8    # V_SHOP TB     — Chỉ tiêu (không có Thực hiện)
-COL_J = 9    # MẸ VÀ BÉ TL  — Chỉ tiêu (không có Thực hiện)
+# Vị trí cột gốc Excel cho bảng thống kê
+COL_H = 7    # V_SHOP TL       — Chỉ tiêu
+COL_Q = 16   # V_SHOP TL       — Thực hiện
+COL_I = 8    # V_SHOP TB       — Chỉ tiêu
+COL_J = 9    # MẸ VÀ BÉ TL    — Chỉ tiêu
 COL_K = 10   # MẸ VÀ BÉ SB_BDD TB — Chỉ tiêu
 COL_R = 17   # MẸ VÀ BÉ SB_BDD TB — Thực hiện
 COL_L = 11   # MẸ VÀ BÉ SBPS TB   — Chỉ tiêu
 COL_S = 18   # MẸ VÀ BÉ SBPS TB   — Thực hiện
-
-# Cột dùng trong bộ lọc sidebar (dùng tên tiêu đề từ dòng 4)
-COT_TINH_TONG = "PSDS T4"
 # ================================================================
 
 excel_url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
@@ -47,12 +81,16 @@ def load_data():
 df_raw = load_data()
 
 if df_raw is not None:
-    # Lưu lại df_raw gốc (giữ đủ cột) để tra cứu số liệu theo vị trí cột
+    # Giữ df_raw_full để tra cứu số liệu theo vị trí cột gốc
     df_raw_full = df_raw.copy()
 
-    # Trích xuất dòng tiêu đề (dòng 4 và dòng 5, index 3 và 4)
-    row_4 = df_raw.iloc[3].fillna("").astype(str).str.strip().tolist()
-    row_5 = df_raw.iloc[4].fillna("").astype(str).str.strip().tolist()
+    # Lọc chỉ lấy các cột muốn hiển thị
+    valid_cols = [c for c in COLS_HIEN_THI if c < df_raw.shape[1]]
+    df_raw_display = df_raw.iloc[:, valid_cols]
+
+    # Trích tiêu đề dòng 4 và dòng 5 (chỉ các cột hiển thị)
+    row_4 = df_raw_display.iloc[3].fillna("").astype(str).str.strip().tolist()
+    row_5 = df_raw_display.iloc[4].fillna("").astype(str).str.strip().tolist()
 
     # Chuẩn hóa tên cột cho bộ lọc
     headers_for_filter = []
@@ -66,13 +104,16 @@ if df_raw is not None:
             else:
                 headers_for_filter.append(f"{r4_clean}_{idx}")
 
-    # Dữ liệu từ dòng 6 trở đi
-    df_data = df_raw.iloc[5:].copy()
+    # Dữ liệu hiển thị từ dòng 6
+    df_data = df_raw_display.iloc[5:].copy()
     df_data.columns = headers_for_filter
     df_data = df_data.reset_index(drop=True)
 
-    # Tạo df_data_full giữ nguyên vị trí cột (không đổi tên) để tra cứu theo index
+    # df_data_full giữ nguyên tất cả cột gốc để tra cứu số liệu
     df_data_full = df_raw_full.iloc[5:].copy().reset_index(drop=True)
+
+    # Vị trí cột Tên KH trong danh sách COLS_HIEN_THI (để wrap chữ)
+    TEN_KH_DISPLAY_IDX = valid_cols.index(COL_TEN_KH) if COL_TEN_KH in valid_cols else -1
 
     # --- SIDEBAR BỘ LỌC ---
     st.sidebar.header("Bộ Lọc Dữ Liệu DSKH")
@@ -85,7 +126,6 @@ if df_raw is not None:
         default=filter_options[:2] if len(filter_options) >= 2 else filter_options
     )
 
-    # Áp dụng lọc — lưu lại index để đồng bộ với df_data_full
     filtered_df = df_data.copy()
     if search_query:
         mask = df_data.astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
@@ -98,7 +138,7 @@ if df_raw is not None:
         if selected_vals:
             filtered_df = filtered_df[filtered_df[col].astype(str).isin(selected_vals)]
 
-    # Lấy các dòng tương ứng từ df_data_full theo index đã lọc
+    # Đồng bộ df_data_full theo index đã lọc
     filtered_df_full = df_data_full.loc[filtered_df.index]
 
     # --- BẢNG HIỂN THỊ CHÍNH ---
@@ -107,14 +147,11 @@ if df_raw is not None:
         lambda x: "" if str(x).strip().lower() in ["nan", "nat", "null", "#n/a"] else x
     )
 
-    # Cột Tên KH dùng để wrap chữ — lấy vị trí trong headers sau khi map
-    TEN_KH_INDEX = COL_TEN_KH  # vẫn giữ nguyên vì không bỏ cột
-
     html_rows = ""
     for _, row in filtered_df_clean.iterrows():
         html_rows += "<tr>"
         for idx, val in enumerate(row):
-            if idx == TEN_KH_INDEX:
+            if idx == TEN_KH_DISPLAY_IDX:
                 html_rows += f"<td class='text-wrap-column'>{val}</td>"
             else:
                 html_rows += f"<td>{val}</td>"
@@ -123,13 +160,13 @@ if df_raw is not None:
     html_header_4 = "<tr>"
     for idx, r4 in enumerate(row_4):
         r4_display = "" if r4.lower().startswith("unnamed:") else r4
-        html_header_4 += f"<th class='text-wrap-column'>{r4_display}</th>" if idx == TEN_KH_INDEX else f"<th>{r4_display}</th>"
+        html_header_4 += f"<th class='text-wrap-column'>{r4_display}</th>" if idx == TEN_KH_DISPLAY_IDX else f"<th>{r4_display}</th>"
     html_header_4 += "</tr>"
 
     html_header_5 = "<tr>"
     for idx, r5 in enumerate(row_5):
         r5_display = "" if r5.lower().startswith("unnamed:") else r5
-        html_header_5 += f"<th class='text-wrap-column'>{r5_display}</th>" if idx == TEN_KH_INDEX else f"<th>{r5_display}</th>"
+        html_header_5 += f"<th class='text-wrap-column'>{r5_display}</th>" if idx == TEN_KH_DISPLAY_IDX else f"<th>{r5_display}</th>"
     html_header_5 += "</tr>"
 
     table_html = f"""
@@ -160,13 +197,12 @@ if df_raw is not None:
     )
 
     # ================================================================
-    # PHẦN 3: BẢNG THỐNG KÊ LAYOUT MỚI — LẤY SỐ LIỆU THEO VỊ TRÍ CỘT
+    # PHẦN 3: BẢNG THỐNG KÊ LAYOUT MỚI
     # ================================================================
     st.markdown("---")
     st.subheader("📊 Thông tin chi tiết khách hàng sau khi lọc")
 
     def fmt_col(df_full, col_idx):
-        """Tính tổng cột theo vị trí index, format có dấu phẩy."""
         if col_idx >= df_full.shape[1]:
             return f"⚠️ Cột {col_idx} không tồn tại"
         total = pd.to_numeric(df_full.iloc[:, col_idx], errors='coerce').sum()
@@ -175,7 +211,6 @@ if df_raw is not None:
         return f"{total:,.0f}"
 
     def get_str(df_full, col_idx):
-        """Lấy giá trị text đầu tiên theo vị trí index."""
         if col_idx >= df_full.shape[1] or len(df_full) == 0:
             return ""
         v = df_full.iloc[0, col_idx]
@@ -199,7 +234,6 @@ if df_raw is not None:
         st.markdown(f"**Tên KH:** {ten_kh_hien}")
         st.markdown("")
 
-        # Cấu trúc bảng: (Nhóm, Loại, col_chi_tieu, col_thuc_hien hoặc None)
         rows_stat = [
             ("V_SHOP",    "TL",        COL_H, COL_Q),
             ("V_SHOP",    "TB",        COL_I, None),
@@ -208,7 +242,6 @@ if df_raw is not None:
             ("MẸ VÀ BÉ", "SBPS TB",   COL_L, COL_S),
         ]
 
-        # Đếm rowspan mỗi nhóm
         rowspan_map = {}
         for nhom, _, _, _ in rows_stat:
             rowspan_map[nhom] = rowspan_map.get(nhom, 0) + 1
