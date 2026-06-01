@@ -53,9 +53,10 @@ COLS_HIEN_THI = [
 COL_MA_KH  = 2   # Cột C — Mã KH
 COL_TEN_KH = 3   # Cột D — Tên KH
 
-# Các cột CỐ ĐỊNH trong bộ lọc sidebar (dùng tên tiêu đề từ dòng 4 của Excel)
-# Chỉnh tên cho khớp chính xác với tiêu đề trong file của bạn
+# Các cột CỐ ĐỊNH trong bộ lọc sidebar (thứ tự từ trên xuống)
+# Tên phải khớp chính xác với tiêu đề dòng 4 trong file Excel
 COLS_LOC_CO_DINH = [
+    "Tên NVBH",       # ← MỚI: nằm trên cùng
     "Mã KH",
     "Tên KH",
     "V_SHOP TL",
@@ -66,10 +67,10 @@ COLS_LOC_CO_DINH = [
 ]
 
 # Vị trí cột gốc Excel cho bảng thống kê
-COL_H = 7    # V_SHOP TL          — Chỉ tiêu
-COL_Q = 16   # V_SHOP TL          — Thực hiện
-COL_I = 8    # V_SHOP TB          — Chỉ tiêu
-COL_J = 9    # MẸ VÀ BÉ TL       — Chỉ tiêu
+COL_H = 7    # V_SHOP TL           — Chỉ tiêu
+COL_Q = 16   # V_SHOP TL           — Thực hiện
+COL_I = 8    # V_SHOP TB           — Chỉ tiêu
+COL_J = 9    # MẸ VÀ BÉ TL        — Chỉ tiêu
 COL_K = 10   # MẸ VÀ BÉ SB_BDD TB — Chỉ tiêu
 COL_R = 17   # MẸ VÀ BÉ SB_BDD TB — Thực hiện
 COL_L = 11   # MẸ VÀ BÉ SBPS TB   — Chỉ tiêu
@@ -132,8 +133,7 @@ if df_raw is not None:
     st.sidebar.header("Bộ Lọc Dữ Liệu DSKH")
     search_query = st.sidebar.text_input("🔍 Tìm kiếm nhanh (Mã, Tên, SĐT...):")
 
-    # Chỉ hiển thị các cột lọc cố định (bỏ multiselect chọn cột)
-    # Lọc ra những cột nào thực sự tồn tại trong dữ liệu
+    # Chỉ giữ lại các cột thực sự tồn tại trong dữ liệu
     cols_loc_ton_tai = [col for col in COLS_LOC_CO_DINH if col in headers_for_filter]
 
     # Áp dụng lọc
@@ -146,7 +146,8 @@ if df_raw is not None:
         filtered_df = filtered_df[mask]
 
     for col in cols_loc_ton_tai:
-        unique_vals = [str(val).strip() for val in df_data[col].unique() if str(val).strip() not in ["", "nan", "NaT", "None"]]
+        unique_vals = [str(val).strip() for val in df_data[col].unique()
+                       if str(val).strip() not in ["", "nan", "NaT", "None"]]
         unique_vals = sorted(list(set(unique_vals)))
         selected_vals = st.sidebar.multiselect(f"Lọc theo {col}:", options=unique_vals)
         if selected_vals:
