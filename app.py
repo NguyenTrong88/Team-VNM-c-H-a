@@ -12,6 +12,7 @@ st.write("Dữ liệu được cập nhật theo thời gian thực từ file Ex
 # ================================================================
 FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
 
+# Các cột muốn hiển thị trong bảng (A=0, B=1, C=2, ...)
 COLS_HIEN_THI = [
     1,   # B
     2,   # C — Mã KH
@@ -51,6 +52,7 @@ COLS_HIEN_THI = [
 COL_MA_KH  = 2   # Cột C — Mã KH
 COL_TEN_KH = 3   # Cột D — Tên KH
 
+# Bộ lọc cố định sidebar
 COLS_LOC_CO_DINH = [
     "Tên NVBH",
     "Mã KH",
@@ -62,14 +64,22 @@ COLS_LOC_CO_DINH = [
     "PSDS",
 ]
 
-COL_H = 7
-COL_Q = 16
-COL_I = 8
-COL_J = 9
-COL_K = 10
-COL_R = 17
-COL_L = 11
-COL_S = 18
+# Vị trí cột gốc Excel cho bảng thống kê (A=0, B=1, ...)
+COL_G  = 6    # V_SHOP TL        — Chỉ tiêu
+COL_H  = 7    # V_SHOP TB        — Chỉ tiêu
+COL_I  = 8    # MẸ VÀ BÉ TL     — Chỉ tiêu
+COL_J  = 9    # MẸ VÀ BÉ SB_BDD TB — Chỉ tiêu
+COL_K  = 10   # MẸ VÀ BÉ SBPS TB   — Chỉ tiêu
+COL_L  = 11   # VNM_SHOP TL      — Chỉ tiêu
+COL_M  = 12   # VNM_SHOP TB      — Chỉ tiêu
+COL_N  = 13   # VIP_SHOP TL      — Chỉ tiêu
+COL_O  = 14   # VIP_SHOP TB      — Chỉ tiêu
+COL_P  = 15   # V_SHOP TL        — Thực hiện
+COL_Q  = 16   # MẸ VÀ BÉ SB_BDD TB — Thực hiện
+COL_R  = 17   # MẸ VÀ BÉ SBPS TB   — Thực hiện
+COL_S  = 18   # VNM_SHOP TL      — Thực hiện
+COL_T  = 19   # VIP_SHOP TL      — Thực hiện
+COL_AU = 46   # A-SBPS           — Thực hiện
 # ================================================================
 
 excel_url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
@@ -143,42 +153,31 @@ if df_raw is not None:
     filtered_df_full = df_data_full.loc[filtered_df.index]
 
     # ================================================================
-    # XỬ LÝ GIÁ TRỊ: số = làm tròn, 0 = để trống + tô đỏ nhạt
+    # BẢNG HIỂN THỊ CHÍNH — số 0 → đỏ nhạt, số khác → làm tròn
     # ================================================================
-    def render_cell(val, col_name):
-        """
-        Trả về (html_content, is_zero)
-        - Số = 0 hoặc rỗng/nan: is_zero=True → ô đỏ nhạt, nội dung trống
-        - Số khác 0: làm tròn, format có dấu phẩy
-        - Text: giữ nguyên
-        """
+    def render_cell(val):
         raw = str(val).strip()
         if raw.lower() in ["nan", "nat", "null", "#n/a", ""]:
-            return ("", True)
-
+            return "", True
         num = pd.to_numeric(val, errors='coerce')
         if pd.notna(num):
             if num == 0:
-                return ("", True)
-            else:
-                return (f"{round(num):,}", False)
-        else:
-            return (raw, False)
+                return "", True
+            return f"{round(num):,}", False
+        return raw, False
 
-    # Tạo HTML rows với logic tô màu
     html_rows = ""
     for _, row in filtered_df.iterrows():
         html_rows += "<tr>"
         for idx, val in enumerate(row):
-            content, is_zero = render_cell(val, headers_for_filter[idx])
-            style = " style='background-color:#ffe5e5;'" if is_zero else ""
+            content, is_zero = render_cell(val)
+            bg = " style='background-color:#ffe5e5;'" if is_zero else ""
+            num_check = pd.to_numeric(val, errors='coerce')
+            extra_class = "num-cell" if pd.notna(num_check) else ""
             if idx == TEN_KH_DISPLAY_IDX:
-                html_rows += f"<td class='text-wrap-column'{style}>{content}</td>"
+                html_rows += f"<td class='text-wrap-column'{bg}>{content}</td>"
             else:
-                # Căn phải nếu là số
-                num_check = pd.to_numeric(val, errors='coerce')
-                align = " num-cell" if pd.notna(num_check) else ""
-                html_rows += f"<td class='{align}'{style}>{content}</td>"
+                html_rows += f"<td class='{extra_class}'{bg}>{content}</td>"
         html_rows += "</tr>"
 
     html_header_4 = "<tr>"
@@ -195,54 +194,14 @@ if df_raw is not None:
 
     table_html = f"""
     <style>
-        .table-container {{
-            max-height: 500px;
-            overflow-y: auto;
-            border: 1px solid #dee2e6;
-            font-family: sans-serif;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }}
-        th, td {{
-            padding: 8px 10px;
-            border: 1px solid #dee2e6;
-            text-align: left;
-            white-space: nowrap;
-        }}
-        .num-cell {{
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }}
-        .text-wrap-column {{
-            white-space: normal !important;
-            min-width: 180px !important;
-            max-width: 220px !important;
-            word-break: break-word;
-        }}
-        thead tr:nth-child(1) th {{
-            position: sticky;
-            top: 0;
-            background-color: #f1f3f5;
-            color: #495057;
-            z-index: 10;
-        }}
-        thead tr:nth-child(2) th {{
-            position: sticky;
-            top: 33px;
-            background-color: #f8f9fa;
-            color: #6c757d;
-            z-index: 9;
-        }}
-        tbody tr:hover td {{
-            background-color: #f0f4ff !important;
-        }}
-        /* Ô đỏ nhạt khi hover vẫn giữ màu đỏ nhạt hơn */
-        tbody tr:hover td[style*="ffe5e5"] {{
-            background-color: #ffd0d0 !important;
-        }}
+        .table-container {{ max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6; font-family: sans-serif; }}
+        table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+        th, td {{ padding: 8px 10px; border: 1px solid #dee2e6; text-align: left; white-space: nowrap; }}
+        .num-cell {{ text-align: right; font-variant-numeric: tabular-nums; }}
+        .text-wrap-column {{ white-space: normal !important; min-width: 180px !important; max-width: 220px !important; word-break: break-word; }}
+        thead tr:nth-child(1) th {{ position: sticky; top: 0; background-color: #f1f3f5; color: #495057; z-index: 10; }}
+        thead tr:nth-child(2) th {{ position: sticky; top: 33px; background-color: #f8f9fa; color: #6c757d; z-index: 9; }}
+        tbody tr:hover td {{ background-color: #f0f4ff !important; }}
     </style>
     <div class="table-container">
         <table>
@@ -267,16 +226,20 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📊 Thông tin chi tiết khách hàng sau khi lọc")
 
-    def fmt_stat(df_full, col_idx):
-        """Tính tổng, làm tròn. Nếu = 0 trả về None (tô đỏ nhạt)."""
-        if col_idx >= df_full.shape[1]:
-            return None, True
+    def sum_col(df_full, col_idx):
+        if col_idx is None or col_idx >= df_full.shape[1]:
+            return None
         total = pd.to_numeric(df_full.iloc[:, col_idx], errors='coerce').sum()
-        if pd.isna(total) or total == 0:
-            return "", True   # is_zero = True
-        return f"{round(total):,}", False
+        return float(total) if pd.notna(total) else None
 
-    def get_str(df_full, col_idx):
+    def fmt_stat(val):
+        if val is None:
+            return None, None
+        if val == 0:
+            return "", True
+        return f"{round(val):,}", False
+
+    def get_str_full(df_full, col_idx):
         if col_idx >= df_full.shape[1] or len(df_full) == 0:
             return ""
         v = df_full.iloc[0, col_idx]
@@ -284,64 +247,125 @@ if df_raw is not None:
             return ""
         return str(v).strip()
 
+    def stat_td(val, is_zero, no_data=False):
+        if no_data:
+            return '<td class="no-data-cell">—</td>'
+        if is_zero:
+            return '<td class="zero-cell"></td>'
+        return f'<td class="num-cell">{val}</td>'
+
     if len(filtered_df_full) == 0:
         st.info("⚠️ Không có dữ liệu. Vui lòng kiểm tra lại bộ lọc.")
     else:
         so_kh = filtered_df_full.iloc[:, COL_MA_KH].nunique()
-
         if so_kh == 1:
-            ma_kh_hien  = get_str(filtered_df_full, COL_MA_KH)
-            ten_kh_hien = get_str(filtered_df_full, COL_TEN_KH)
+            ma_kh_hien  = get_str_full(filtered_df_full, COL_MA_KH)
+            ten_kh_hien = get_str_full(filtered_df_full, COL_TEN_KH)
         else:
             ma_kh_hien  = f"({so_kh} khách hàng)"
             ten_kh_hien = "(nhiều khách hàng)"
 
-        st.markdown(f"**Mã KH:** {ma_kh_hien}")
-        st.markdown(f"**Tên KH:** {ten_kh_hien}")
-        st.markdown("")
+        # Tính tổng tất cả cột số liệu
+        s = {
+            'G':  sum_col(filtered_df_full, COL_G),
+            'H':  sum_col(filtered_df_full, COL_H),
+            'I':  sum_col(filtered_df_full, COL_I),
+            'J':  sum_col(filtered_df_full, COL_J),
+            'K':  sum_col(filtered_df_full, COL_K),
+            'L':  sum_col(filtered_df_full, COL_L),
+            'M':  sum_col(filtered_df_full, COL_M),
+            'N':  sum_col(filtered_df_full, COL_N),
+            'O':  sum_col(filtered_df_full, COL_O),
+            'P':  sum_col(filtered_df_full, COL_P),
+            'Q':  sum_col(filtered_df_full, COL_Q),
+            'R':  sum_col(filtered_df_full, COL_R),
+            'S':  sum_col(filtered_df_full, COL_S),
+            'T':  sum_col(filtered_df_full, COL_T),
+            'AU': sum_col(filtered_df_full, COL_AU),
+        }
 
+        def con_lai(ct, th):
+            if ct is None or th is None:
+                return None
+            return ct - th
+
+        # (Nhóm, Loại, key_chỉtiêu, key_thựchiện, giá_trị_còn_lại)
         rows_stat = [
-            ("V_SHOP",    "TL",        COL_H, COL_Q),
-            ("V_SHOP",    "TB",        COL_I, None),
-            ("MẸ VÀ BÉ", "TL",        COL_J, None),
-            ("MẸ VÀ BÉ", "SB_BDD TB", COL_K, COL_R),
-            ("MẸ VÀ BÉ", "SBPS TB",   COL_L, COL_S),
+            ("V_SHOP",       "TL",        'G',  'P',  con_lai(s['G'], s['P'])),
+            ("V_SHOP",       "TB",        'H',  None, None),
+            ("MẸ VÀ BÉ",    "TL",        'I',  None, None),
+            ("MẸ VÀ BÉ",    "SB_BDD TB", 'J',  'Q',  con_lai(s['J'], s['Q'])),
+            ("MẸ VÀ BÉ",    "SBPS TB",   'K',  'R',  con_lai(s['K'], s['R'])),
+            ("VNM_SHOP",     "TL",        'L',  'S',  con_lai(s['L'], s['S'])),
+            ("VNM_SHOP",     "TB",        'M',  None, None),
+            ("VIP_SHOP",     "TL",        'N',  'T',  con_lai(s['N'], s['T'])),
+            ("VIP_SHOP",     "TB",        'O',  None, None),
+            ("A-SBPS",       "",          None, 'AU', None),
         ]
 
         rowspan_map = {}
-        for nhom, _, _, _ in rows_stat:
+        for nhom, _, _, _, _ in rows_stat:
             rowspan_map[nhom] = rowspan_map.get(nhom, 0) + 1
 
         html_stat = """
         <style>
-            .stat-table { border-collapse: collapse; font-family: sans-serif; font-size: 14px; width: 100%; max-width: 620px; }
-            .stat-table th { background-color: #f1f3f5; color: #495057; padding: 8px 14px; border: 1px solid #dee2e6; text-align: center; }
-            .stat-table td { padding: 7px 14px; border: 1px solid #dee2e6; text-align: left; }
-            .stat-table .group-cell { font-weight: bold; background-color: #f8f9fa; vertical-align: middle; text-align: center; color: #343a40; }
-            .stat-table .label-cell { color: #495057; padding-left: 18px; }
-            .stat-table .num-cell { text-align: right; color: #212529; font-variant-numeric: tabular-nums; }
-            .stat-table .zero-cell { background-color: #ffe5e5; text-align: right; }
-            .stat-table .no-data-cell { background-color: #f8f9fa; text-align: center; color: #adb5bd; }
+            .stat-wrap { max-width: 740px; font-family: sans-serif; }
+            .kh-info { margin-bottom: 10px; border-collapse: collapse; width: 100%; max-width: 740px; }
+            .kh-info td { border: 1px solid #2d7ab8; padding: 7px 16px; }
+            .kh-label { background-color: #3a8fd4; color: white; font-weight: bold; text-align: center; min-width: 160px; }
+            .kh-value { background: white; min-width: 200px; }
+            .stat-table { border-collapse: collapse; font-size: 14px; width: 100%; max-width: 740px; }
+            .stat-table th { background-color: #3a8fd4; color: white; padding: 8px 14px; border: 1px solid #2d7ab8; text-align: center; }
+            .stat-table td { padding: 7px 14px; border: 1px solid #dee2e6; }
+            .group-cell { font-weight: bold; background-color: #cce8f4; vertical-align: middle; text-align: center; color: #1a5f8a; border: 1px solid #2d7ab8 !important; }
+            .label-cell { color: #212529; padding-left: 14px; background-color: #e8f4fc; }
+            .num-cell { text-align: right; color: #212529; font-variant-numeric: tabular-nums; }
+            .zero-cell { background-color: #ffe5e5; }
+            .no-data-cell { background-color: #f8f9fa; text-align: center; color: #adb5bd; }
         </style>
+        <div class="stat-wrap">
+        """
+
+        html_stat += f"""
+        <table class="kh-info">
+            <tr><td class="kh-label">Mã KH</td><td class="kh-value">{ma_kh_hien}</td><td style="border:none"></td><td style="border:none"></td></tr>
+            <tr><td class="kh-label">Tên KH</td><td class="kh-value">{ten_kh_hien}</td><td style="border:none"></td><td style="border:none"></td></tr>
+        </table>
         <table class="stat-table">
             <thead>
                 <tr>
-                    <th style="width:130px"></th>
+                    <th style="width:150px"></th>
                     <th style="width:120px"></th>
-                    <th style="width:160px">Chỉ tiêu</th>
-                    <th style="width:160px">Thực hiện</th>
+                    <th style="width:130px">Chỉ tiêu</th>
+                    <th style="width:130px">Thực Hiện</th>
+                    <th style="width:130px">Còn Lại</th>
                 </tr>
             </thead>
             <tbody>
         """
 
         prev_group = None
-        for nhom, loai, col_ct, col_th in rows_stat:
-            ct_val, ct_zero = fmt_stat(filtered_df_full, col_ct)
-            if col_th is not None:
-                th_val, th_zero = fmt_stat(filtered_df_full, col_th)
+        for nhom, loai, key_ct, key_th, val_cl in rows_stat:
+            # Chỉ tiêu
+            if key_ct is not None:
+                ct_v, ct_z = fmt_stat(s[key_ct])
+                ct_td = stat_td(ct_v, ct_z)
             else:
-                th_val, th_zero = None, None
+                ct_td = '<td class="no-data-cell">—</td>'
+
+            # Thực hiện
+            if key_th is not None:
+                th_v, th_z = fmt_stat(s[key_th])
+                th_td = stat_td(th_v, th_z)
+            else:
+                th_td = '<td class="no-data-cell">—</td>'
+
+            # Còn lại
+            if val_cl is not None:
+                cl_v, cl_z = fmt_stat(val_cl)
+                cl_td = stat_td(cl_v, cl_z)
+            else:
+                cl_td = '<td class="no-data-cell">—</td>'
 
             group_td = ""
             if nhom != prev_group:
@@ -349,24 +373,15 @@ if df_raw is not None:
                 group_td = f'<td class="group-cell" rowspan="{rowspan}">{nhom}</td>'
                 prev_group = nhom
 
-            ct_class = "zero-cell" if ct_zero else "num-cell"
-
-            if th_val is None:
-                th_html = '<td class="no-data-cell">—</td>'
-            else:
-                th_class = "zero-cell" if th_zero else "num-cell"
-                th_html = f'<td class="{th_class}">{th_val}</td>'
-
             html_stat += f"""
                 <tr>
                     {group_td}
                     <td class="label-cell">{loai}</td>
-                    <td class="{ct_class}">{ct_val}</td>
-                    {th_html}
+                    {ct_td}{th_td}{cl_td}
                 </tr>
             """
 
-        html_stat += "</tbody></table>"
-        st.components.v1.html(html_stat, height=240, scrolling=False)
+        html_stat += "</tbody></table></div>"
+        st.components.v1.html(html_stat, height=430, scrolling=False)
 
     st.markdown(f"**Tổng số dòng lọc được:** {len(filtered_df)} dòng")
