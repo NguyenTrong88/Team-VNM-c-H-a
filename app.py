@@ -12,7 +12,6 @@ st.write("Dữ liệu được cập nhật theo thời gian thực từ file Ex
 # ================================================================
 FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
 
-# Các cột muốn hiển thị trong bảng (theo vị trí Excel: A=0, B=1, ...)
 COLS_HIEN_THI = [
     1,   # B
     2,   # C — Mã KH
@@ -49,14 +48,11 @@ COLS_HIEN_THI = [
     51,  # AZ
 ]
 
-# Vị trí cột gốc Excel
 COL_MA_KH  = 2   # Cột C — Mã KH
 COL_TEN_KH = 3   # Cột D — Tên KH
 
-# Các cột CỐ ĐỊNH trong bộ lọc sidebar (thứ tự từ trên xuống)
-# Tên phải khớp chính xác với tiêu đề dòng 4 trong file Excel
 COLS_LOC_CO_DINH = [
-    "Tên NVBH",       # ← MỚI: nằm trên cùng
+    "Tên NVBH",
     "Mã KH",
     "Tên KH",
     "V_SHOP TL",
@@ -66,15 +62,14 @@ COLS_LOC_CO_DINH = [
     "PSDS",
 ]
 
-# Vị trí cột gốc Excel cho bảng thống kê
-COL_H = 7    # V_SHOP TL           — Chỉ tiêu
-COL_Q = 16   # V_SHOP TL           — Thực hiện
-COL_I = 8    # V_SHOP TB           — Chỉ tiêu
-COL_J = 9    # MẸ VÀ BÉ TL        — Chỉ tiêu
-COL_K = 10   # MẸ VÀ BÉ SB_BDD TB — Chỉ tiêu
-COL_R = 17   # MẸ VÀ BÉ SB_BDD TB — Thực hiện
-COL_L = 11   # MẸ VÀ BÉ SBPS TB   — Chỉ tiêu
-COL_S = 18   # MẸ VÀ BÉ SBPS TB   — Thực hiện
+COL_H = 7
+COL_Q = 16
+COL_I = 8
+COL_J = 9
+COL_K = 10
+COL_R = 17
+COL_L = 11
+COL_S = 18
 # ================================================================
 
 excel_url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
@@ -96,15 +91,12 @@ df_raw = load_data()
 if df_raw is not None:
     df_raw_full = df_raw.copy()
 
-    # Lọc chỉ lấy các cột muốn hiển thị
     valid_cols = [c for c in COLS_HIEN_THI if c < df_raw.shape[1]]
     df_raw_display = df_raw.iloc[:, valid_cols]
 
-    # Trích tiêu đề dòng 4 và dòng 5
     row_4 = df_raw_display.iloc[3].fillna("").astype(str).str.strip().tolist()
     row_5 = df_raw_display.iloc[4].fillna("").astype(str).str.strip().tolist()
 
-    # Chuẩn hóa tên cột
     headers_for_filter = []
     for idx, r4 in enumerate(row_4):
         r4_clean = "" if r4.lower().startswith("unnamed:") else r4
@@ -116,15 +108,12 @@ if df_raw is not None:
             else:
                 headers_for_filter.append(f"{r4_clean}_{idx}")
 
-    # Dữ liệu hiển thị từ dòng 6
     df_data = df_raw_display.iloc[5:].copy()
     df_data.columns = headers_for_filter
     df_data = df_data.reset_index(drop=True)
 
-    # df_data_full giữ nguyên tất cả cột gốc
     df_data_full = df_raw_full.iloc[5:].copy().reset_index(drop=True)
 
-    # Vị trí cột Tên KH trong danh sách hiển thị (để wrap chữ)
     TEN_KH_DISPLAY_IDX = valid_cols.index(COL_TEN_KH) if COL_TEN_KH in valid_cols else -1
 
     # ================================================================
@@ -133,10 +122,8 @@ if df_raw is not None:
     st.sidebar.header("Bộ Lọc Dữ Liệu DSKH")
     search_query = st.sidebar.text_input("🔍 Tìm kiếm nhanh (Mã, Tên, SĐT...):")
 
-    # Chỉ giữ lại các cột thực sự tồn tại trong dữ liệu
     cols_loc_ton_tai = [col for col in COLS_LOC_CO_DINH if col in headers_for_filter]
 
-    # Áp dụng lọc
     filtered_df = df_data.copy()
 
     if search_query:
@@ -153,23 +140,45 @@ if df_raw is not None:
         if selected_vals:
             filtered_df = filtered_df[filtered_df[col].astype(str).isin(selected_vals)]
 
-    # Đồng bộ df_data_full theo index đã lọc
     filtered_df_full = df_data_full.loc[filtered_df.index]
 
-    # --- BẢNG HIỂN THỊ CHÍNH ---
-    filtered_df_clean = filtered_df.copy().fillna("")
-    filtered_df_clean = filtered_df_clean.map(
-        lambda x: "" if str(x).strip().lower() in ["nan", "nat", "null", "#n/a"] else x
-    )
+    # ================================================================
+    # XỬ LÝ GIÁ TRỊ: số = làm tròn, 0 = để trống + tô đỏ nhạt
+    # ================================================================
+    def render_cell(val, col_name):
+        """
+        Trả về (html_content, is_zero)
+        - Số = 0 hoặc rỗng/nan: is_zero=True → ô đỏ nhạt, nội dung trống
+        - Số khác 0: làm tròn, format có dấu phẩy
+        - Text: giữ nguyên
+        """
+        raw = str(val).strip()
+        if raw.lower() in ["nan", "nat", "null", "#n/a", ""]:
+            return ("", True)
 
+        num = pd.to_numeric(val, errors='coerce')
+        if pd.notna(num):
+            if num == 0:
+                return ("", True)
+            else:
+                return (f"{round(num):,}", False)
+        else:
+            return (raw, False)
+
+    # Tạo HTML rows với logic tô màu
     html_rows = ""
-    for _, row in filtered_df_clean.iterrows():
+    for _, row in filtered_df.iterrows():
         html_rows += "<tr>"
         for idx, val in enumerate(row):
+            content, is_zero = render_cell(val, headers_for_filter[idx])
+            style = " style='background-color:#ffe5e5;'" if is_zero else ""
             if idx == TEN_KH_DISPLAY_IDX:
-                html_rows += f"<td class='text-wrap-column'>{val}</td>"
+                html_rows += f"<td class='text-wrap-column'{style}>{content}</td>"
             else:
-                html_rows += f"<td>{val}</td>"
+                # Căn phải nếu là số
+                num_check = pd.to_numeric(val, errors='coerce')
+                align = " num-cell" if pd.notna(num_check) else ""
+                html_rows += f"<td class='{align}'{style}>{content}</td>"
         html_rows += "</tr>"
 
     html_header_4 = "<tr>"
@@ -186,13 +195,54 @@ if df_raw is not None:
 
     table_html = f"""
     <style>
-        .table-container {{ max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6; font-family: sans-serif; }}
-        table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
-        th, td {{ padding: 8px 10px; border: 1px solid #dee2e6; text-align: left; white-space: nowrap; }}
-        .text-wrap-column {{ white-space: normal !important; min-width: 180px !important; max-width: 220px !important; word-break: break-word; }}
-        thead tr:nth-child(1) th {{ position: sticky; top: 0; background-color: #f1f3f5; color: #495057; z-index: 10; }}
-        thead tr:nth-child(2) th {{ position: sticky; top: 33px; background-color: #f8f9fa; color: #6c757d; z-index: 9; }}
-        tbody tr:hover {{ background-color: #f8f9fa; }}
+        .table-container {{
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            font-family: sans-serif;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }}
+        th, td {{
+            padding: 8px 10px;
+            border: 1px solid #dee2e6;
+            text-align: left;
+            white-space: nowrap;
+        }}
+        .num-cell {{
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }}
+        .text-wrap-column {{
+            white-space: normal !important;
+            min-width: 180px !important;
+            max-width: 220px !important;
+            word-break: break-word;
+        }}
+        thead tr:nth-child(1) th {{
+            position: sticky;
+            top: 0;
+            background-color: #f1f3f5;
+            color: #495057;
+            z-index: 10;
+        }}
+        thead tr:nth-child(2) th {{
+            position: sticky;
+            top: 33px;
+            background-color: #f8f9fa;
+            color: #6c757d;
+            z-index: 9;
+        }}
+        tbody tr:hover td {{
+            background-color: #f0f4ff !important;
+        }}
+        /* Ô đỏ nhạt khi hover vẫn giữ màu đỏ nhạt hơn */
+        tbody tr:hover td[style*="ffe5e5"] {{
+            background-color: #ffd0d0 !important;
+        }}
     </style>
     <div class="table-container">
         <table>
@@ -217,13 +267,14 @@ if df_raw is not None:
     st.markdown("---")
     st.subheader("📊 Thông tin chi tiết khách hàng sau khi lọc")
 
-    def fmt_col(df_full, col_idx):
+    def fmt_stat(df_full, col_idx):
+        """Tính tổng, làm tròn. Nếu = 0 trả về None (tô đỏ nhạt)."""
         if col_idx >= df_full.shape[1]:
-            return f"⚠️ Cột {col_idx} không tồn tại"
+            return None, True
         total = pd.to_numeric(df_full.iloc[:, col_idx], errors='coerce').sum()
         if pd.isna(total) or total == 0:
-            return "—"
-        return f"{total:,.0f}"
+            return "", True   # is_zero = True
+        return f"{round(total):,}", False
 
     def get_str(df_full, col_idx):
         if col_idx >= df_full.shape[1] or len(df_full) == 0:
@@ -269,7 +320,8 @@ if df_raw is not None:
             .stat-table .group-cell { font-weight: bold; background-color: #f8f9fa; vertical-align: middle; text-align: center; color: #343a40; }
             .stat-table .label-cell { color: #495057; padding-left: 18px; }
             .stat-table .num-cell { text-align: right; color: #212529; font-variant-numeric: tabular-nums; }
-            .stat-table .empty-cell { text-align: center; color: #adb5bd; }
+            .stat-table .zero-cell { background-color: #ffe5e5; text-align: right; }
+            .stat-table .no-data-cell { background-color: #f8f9fa; text-align: center; color: #adb5bd; }
         </style>
         <table class="stat-table">
             <thead>
@@ -285,8 +337,11 @@ if df_raw is not None:
 
         prev_group = None
         for nhom, loai, col_ct, col_th in rows_stat:
-            ct_val = fmt_col(filtered_df_full, col_ct)
-            th_val = fmt_col(filtered_df_full, col_th) if col_th is not None else None
+            ct_val, ct_zero = fmt_stat(filtered_df_full, col_ct)
+            if col_th is not None:
+                th_val, th_zero = fmt_stat(filtered_df_full, col_th)
+            else:
+                th_val, th_zero = None, None
 
             group_td = ""
             if nhom != prev_group:
@@ -294,13 +349,19 @@ if df_raw is not None:
                 group_td = f'<td class="group-cell" rowspan="{rowspan}">{nhom}</td>'
                 prev_group = nhom
 
-            th_html = f'<td class="num-cell">{th_val}</td>' if th_val is not None else '<td class="empty-cell">—</td>'
+            ct_class = "zero-cell" if ct_zero else "num-cell"
+
+            if th_val is None:
+                th_html = '<td class="no-data-cell">—</td>'
+            else:
+                th_class = "zero-cell" if th_zero else "num-cell"
+                th_html = f'<td class="{th_class}">{th_val}</td>'
 
             html_stat += f"""
                 <tr>
                     {group_td}
                     <td class="label-cell">{loai}</td>
-                    <td class="num-cell">{ct_val}</td>
+                    <td class="{ct_class}">{ct_val}</td>
                     {th_html}
                 </tr>
             """
