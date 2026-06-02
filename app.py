@@ -4,7 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="Phần mềm Lọc Dữ Liệu Excel", layout="wide")
 
 st.title("📊 ỨNG DỤNG LỌC DỮ LIỆU EXCEL TỪ GOOGLE DRIVE")
-st.subheader("📋 Đang đọc dữ liệu từ sheet: DSKH (Cố định 2 dòng tiêu đề)")
+st.subheader("📋 Đang đọc dữ liệu từ sheet: DSKH (Tiêu đề dòng 4, dữ liệu từ dòng 5)")
 st.write("Dữ liệu được cập nhật theo thời gian thực từ file Excel trên Drive của bạn.")
 
 # ================================================================
@@ -65,21 +65,21 @@ COLS_LOC_CO_DINH = [
 ]
 
 # Vị trí cột gốc Excel cho bảng thống kê (A=0, B=1, ...)
-COL_G  = 6    # V_SHOP TL        — Chỉ tiêu
-COL_H  = 7    # V_SHOP TB        — Chỉ tiêu
-COL_I  = 8    # MẸ VÀ BÉ TL     — Chỉ tiêu
+COL_G  = 6    # V_SHOP TL           — Chỉ tiêu
+COL_H  = 7    # V_SHOP TB           — Chỉ tiêu
+COL_I  = 8    # MẸ VÀ BÉ TL        — Chỉ tiêu
 COL_J  = 9    # MẸ VÀ BÉ SB_BDD TB — Chỉ tiêu
 COL_K  = 10   # MẸ VÀ BÉ SBPS TB   — Chỉ tiêu
-COL_L  = 11   # VNM_SHOP TL      — Chỉ tiêu
-COL_M  = 12   # VNM_SHOP TB      — Chỉ tiêu
-COL_N  = 13   # VIP_SHOP TL      — Chỉ tiêu
-COL_O  = 14   # VIP_SHOP TB      — Chỉ tiêu
-COL_P  = 15   # V_SHOP TL        — Thực hiện
+COL_L  = 11   # VNM_SHOP TL         — Chỉ tiêu
+COL_M  = 12   # VNM_SHOP TB         — Chỉ tiêu
+COL_N  = 13   # VIP_SHOP TL         — Chỉ tiêu
+COL_O  = 14   # VIP_SHOP TB         — Chỉ tiêu
+COL_P  = 15   # V_SHOP TL           — Thực hiện
 COL_Q  = 16   # MẸ VÀ BÉ SB_BDD TB — Thực hiện
 COL_R  = 17   # MẸ VÀ BÉ SBPS TB   — Thực hiện
-COL_S  = 18   # VNM_SHOP TL      — Thực hiện
-COL_T  = 19   # VIP_SHOP TL      — Thực hiện
-COL_AU = 46   # A-SBPS           — Thực hiện
+COL_S  = 18   # VNM_SHOP TL         — Thực hiện
+COL_T  = 19   # VIP_SHOP TL         — Thực hiện
+COL_AU = 46   # A-SBPS              — Thực hiện
 # ================================================================
 
 excel_url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
@@ -104,25 +104,30 @@ if df_raw is not None:
     valid_cols = [c for c in COLS_HIEN_THI if c < df_raw.shape[1]]
     df_raw_display = df_raw.iloc[:, valid_cols]
 
-    row_4 = df_raw_display.iloc[3].fillna("").astype(str).str.strip().tolist()
-    row_5 = df_raw_display.iloc[4].fillna("").astype(str).str.strip().tolist()
+    # ----------------------------------------------------------------
+    # CHỈ 1 DÒNG TIÊU ĐỀ (dòng 4 = index 3), dữ liệu từ dòng 5 (index 4)
+    # ----------------------------------------------------------------
+    row_header = df_raw_display.iloc[3].fillna("").astype(str).str.strip().tolist()
 
+    # Chuẩn hóa tên cột
     headers_for_filter = []
-    for idx, r4 in enumerate(row_4):
-        r4_clean = "" if r4.lower().startswith("unnamed:") else r4
-        if r4_clean == "":
+    for idx, r in enumerate(row_header):
+        r_clean = "" if r.lower().startswith("unnamed:") else r
+        if r_clean == "":
             headers_for_filter.append(f"Cột_Trống_{idx+1}")
         else:
-            if r4_clean not in headers_for_filter:
-                headers_for_filter.append(r4_clean)
+            if r_clean not in headers_for_filter:
+                headers_for_filter.append(r_clean)
             else:
-                headers_for_filter.append(f"{r4_clean}_{idx}")
+                headers_for_filter.append(f"{r_clean}_{idx}")
 
-    df_data = df_raw_display.iloc[5:].copy()
+    # Dữ liệu từ dòng 5 (index 4) trở đi
+    df_data = df_raw_display.iloc[4:].copy()
     df_data.columns = headers_for_filter
     df_data = df_data.reset_index(drop=True)
 
-    df_data_full = df_raw_full.iloc[5:].copy().reset_index(drop=True)
+    # df_data_full giữ nguyên tất cả cột gốc để tra số liệu
+    df_data_full = df_raw_full.iloc[4:].copy().reset_index(drop=True)
 
     TEN_KH_DISPLAY_IDX = valid_cols.index(COL_TEN_KH) if COL_TEN_KH in valid_cols else -1
 
@@ -153,7 +158,7 @@ if df_raw is not None:
     filtered_df_full = df_data_full.loc[filtered_df.index]
 
     # ================================================================
-    # BẢNG HIỂN THỊ CHÍNH — số 0 → đỏ nhạt, số khác → làm tròn
+    # BẢNG HIỂN THỊ CHÍNH
     # ================================================================
     def render_cell(val):
         raw = str(val).strip()
@@ -180,17 +185,11 @@ if df_raw is not None:
                 html_rows += f"<td class='{extra_class}'{bg}>{content}</td>"
         html_rows += "</tr>"
 
-    html_header_4 = "<tr>"
-    for idx, r4 in enumerate(row_4):
-        r4_display = "" if r4.lower().startswith("unnamed:") else r4
-        html_header_4 += f"<th class='text-wrap-column'>{r4_display}</th>" if idx == TEN_KH_DISPLAY_IDX else f"<th>{r4_display}</th>"
-    html_header_4 += "</tr>"
-
-    html_header_5 = "<tr>"
-    for idx, r5 in enumerate(row_5):
-        r5_display = "" if r5.lower().startswith("unnamed:") else r5
-        html_header_5 += f"<th class='text-wrap-column'>{r5_display}</th>" if idx == TEN_KH_DISPLAY_IDX else f"<th>{r5_display}</th>"
-    html_header_5 += "</tr>"
+    html_header = "<tr>"
+    for idx, h in enumerate(row_header):
+        h_display = "" if h.lower().startswith("unnamed:") else h
+        html_header += f"<th class='text-wrap-column'>{h_display}</th>" if idx == TEN_KH_DISPLAY_IDX else f"<th>{h_display}</th>"
+    html_header += "</tr>"
 
     table_html = f"""
     <style>
@@ -199,13 +198,12 @@ if df_raw is not None:
         th, td {{ padding: 8px 10px; border: 1px solid #dee2e6; text-align: left; white-space: nowrap; }}
         .num-cell {{ text-align: right; font-variant-numeric: tabular-nums; }}
         .text-wrap-column {{ white-space: normal !important; min-width: 180px !important; max-width: 220px !important; word-break: break-word; }}
-        thead tr:nth-child(1) th {{ position: sticky; top: 0; background-color: #f1f3f5; color: #495057; z-index: 10; }}
-        thead tr:nth-child(2) th {{ position: sticky; top: 33px; background-color: #f8f9fa; color: #6c757d; z-index: 9; }}
+        thead tr th {{ position: sticky; top: 0; background-color: #f1f3f5; color: #495057; z-index: 10; }}
         tbody tr:hover td {{ background-color: #f0f4ff !important; }}
     </style>
     <div class="table-container">
         <table>
-            <thead>{html_header_4}{html_header_5}</thead>
+            <thead>{html_header}</thead>
             <tbody>{html_rows}</tbody>
         </table>
     </div>
@@ -265,7 +263,6 @@ if df_raw is not None:
             ma_kh_hien  = f"({so_kh} khách hàng)"
             ten_kh_hien = "(nhiều khách hàng)"
 
-        # Tính tổng tất cả cột số liệu
         s = {
             'G':  sum_col(filtered_df_full, COL_G),
             'H':  sum_col(filtered_df_full, COL_H),
@@ -289,18 +286,17 @@ if df_raw is not None:
                 return None
             return ct - th
 
-        # (Nhóm, Loại, key_chỉtiêu, key_thựchiện, giá_trị_còn_lại)
         rows_stat = [
-            ("V_SHOP",       "TL",        'G',  'P',  con_lai(s['G'], s['P'])),
-            ("V_SHOP",       "TB",        'H',  None, None),
-            ("MẸ VÀ BÉ",    "TL",        'I',  None, None),
-            ("MẸ VÀ BÉ",    "SB_BDD TB", 'J',  'Q',  con_lai(s['J'], s['Q'])),
-            ("MẸ VÀ BÉ",    "SBPS TB",   'K',  'R',  con_lai(s['K'], s['R'])),
-            ("VNM_SHOP",     "TL",        'L',  'S',  con_lai(s['L'], s['S'])),
-            ("VNM_SHOP",     "TB",        'M',  None, None),
-            ("VIP_SHOP",     "TL",        'N',  'T',  con_lai(s['N'], s['T'])),
-            ("VIP_SHOP",     "TB",        'O',  None, None),
-            ("A-SBPS",       "",          None, 'AU', None),
+            ("V_SHOP",    "TL",        'G',  'P',  con_lai(s['G'], s['P'])),
+            ("V_SHOP",    "TB",        'H',  None, None),
+            ("MẸ VÀ BÉ", "TL",        'I',  None, None),
+            ("MẸ VÀ BÉ", "SB_BDD TB", 'J',  'Q',  con_lai(s['J'], s['Q'])),
+            ("MẸ VÀ BÉ", "SBPS TB",   'K',  'R',  con_lai(s['K'], s['R'])),
+            ("VNM_SHOP",  "TL",        'L',  'S',  con_lai(s['L'], s['S'])),
+            ("VNM_SHOP",  "TB",        'M',  None, None),
+            ("VIP_SHOP",  "TL",        'N',  'T',  con_lai(s['N'], s['T'])),
+            ("VIP_SHOP",  "TB",        'O',  None, None),
+            ("A-SBPS",    "",          None, 'AU', None),
         ]
 
         rowspan_map = {}
@@ -346,26 +342,9 @@ if df_raw is not None:
 
         prev_group = None
         for nhom, loai, key_ct, key_th, val_cl in rows_stat:
-            # Chỉ tiêu
-            if key_ct is not None:
-                ct_v, ct_z = fmt_stat(s[key_ct])
-                ct_td = stat_td(ct_v, ct_z)
-            else:
-                ct_td = '<td class="no-data-cell">—</td>'
-
-            # Thực hiện
-            if key_th is not None:
-                th_v, th_z = fmt_stat(s[key_th])
-                th_td = stat_td(th_v, th_z)
-            else:
-                th_td = '<td class="no-data-cell">—</td>'
-
-            # Còn lại
-            if val_cl is not None:
-                cl_v, cl_z = fmt_stat(val_cl)
-                cl_td = stat_td(cl_v, cl_z)
-            else:
-                cl_td = '<td class="no-data-cell">—</td>'
+            ct_td = stat_td(*fmt_stat(s[key_ct])) if key_ct else '<td class="no-data-cell">—</td>'
+            th_td = stat_td(*fmt_stat(s[key_th])) if key_th else '<td class="no-data-cell">—</td>'
+            cl_td = stat_td(*fmt_stat(val_cl))     if val_cl is not None else '<td class="no-data-cell">—</td>'
 
             group_td = ""
             if nhom != prev_group:
