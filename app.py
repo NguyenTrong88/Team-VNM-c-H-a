@@ -10,7 +10,7 @@ st.write("Dữ liệu được cập nhật theo thời gian thực từ file Ex
 # ================================================================
 # CẤU HÌNH — CHỈ CẦN CHỈNH PHẦN NÀY
 # ================================================================
-FILE_ID = "1ovZyqNg6hQVqEHXpfBnd1-zfdHcDa7TD"
+FILE_ID = "1qpgIhfKtyaGTX1a6qqrZ1ofsJPEGAUXq"
 
 # Các cột muốn hiển thị trong bảng (A=0, B=1, C=2, ...)
 COLS_HIEN_THI = [
